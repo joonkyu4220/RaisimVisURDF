@@ -31,6 +31,7 @@ class ENVIRONMENT : public RaisimGymEnv {
     dataHasWrist_ = cfg["motion data"]["has wrist"].template As<bool>();
     control_dt_ = 1.0 / cfg["motion data"]["fps"].template As<float>();
     simulation_dt_ = cfg["simulation_dt"].template As<float>();
+    isData_ = cfg["motion data"]["is data"].template As<bool>();
   }
 
   void setWorld(){
@@ -45,35 +46,57 @@ class ENVIRONMENT : public RaisimGymEnv {
   }
 
   void setCharacter(){
-    // CHARACTER SETUP
     simChar_ = world_->addArticulatedSystem(resourceDir_ + "/" + charFileName_ + ".urdf"); 
-    simChar_->setName("sim character");
     if (visualizable_){
       server_->focusOn(simChar_);
     }
-
     gcDim_ = simChar_->getGeneralizedCoordinateDim(); // 51
+    std::cout << "GC DIM: " << gcDim_ << std::endl;
     gc_.setZero(gcDim_); gcInit_.setZero(gcDim_); gcRef_.setZero(gcDim_);
 
     gvDim_ = simChar_->getDOF(); // 40
+    std::cout << "GV DIM: " << gvDim_ << std::endl;
     controlDim_ = gvDim_ - 6;
     gv_.setZero(gvDim_); gvInit_.setZero(gvDim_); gvRef_.setZero(gvDim_);
     
     com_.setZero(comDim_); comRef_.setZero(comDim_);
     ee_.setZero(eeDim_); eeRef_.setZero(eeDim_);
     
+    std::cout << "==========JOINT LIST==========" << std::endl;
     for (auto bodyName:simChar_->getBodyNames()){
       std::cout << bodyName << std::endl;
     }
+    std::cout << "==============================" << std::endl;
   }
 
   void setData(){
     // DATA PREPARATION
-    loadData();
-    if (isPreprocess_) {
-      preprocess();
+    if (isData_){
+      loadData();
+      if (isPreprocess_) {
+        preprocess();
+      }
+      loadGT();
     }
-    loadGT();
+    else{
+      defaultData();
+    }
+  }
+
+  void defaultData(){
+    dataLen_ = 1;
+    dataGC_.setZero(dataLen_, gcDim_);
+    dataGV_.setZero(dataLen_, gvDim_);
+    dataGC_.row(0)[2] = 1.0;
+    dataGC_.row(0)[3] = 0.707;
+    dataGC_.row(0)[4] = 0.707;
+    int gcIdx = 7;
+    for (int jointIdx = 0; jointIdx < nJoints_; jointIdx++){
+      if (cDim_[jointIdx] == 4){
+        dataGC_.row(0)[gcIdx] = 1;
+      }
+      gcIdx += cDim_[jointIdx];
+    }
   }
 
   void setAgent(const Yaml::Node& cfg){
@@ -344,29 +367,61 @@ class ENVIRONMENT : public RaisimGymEnv {
     bool visualizable_ = true;
     raisim::ArticulatedSystem *simChar_;
 
-    int nJoints_ = 14;
-    
-    int chestIdx_ = 0;
-    int neckIdx_ = 1;
-    int rShoulderIdx_ = 2;
-    int rElbowIdx_ = 3;
-    int rWristIdx_ = 4;
-    int lShoulderIdx_ = 5;
-    int lElbowIdx_ = 6;
-    int lWristIdx_ = 7;
-    int rHipIdx_ = 8;
-    int rKneeIdx_ = 9;
-    int rAnkleIdx_ = 10;
-    int lHipIdx_ = 11;
-    int lKneeIdx_ = 12;
-    int lAnkleIdx_ = 13;
+    bool isData_ = false;
 
-    int cStart_[14] = {7, 11,  15, 19, 20,  24, 28, 29,  33, 37, 38,  42, 46, 47};
-    int vStart_[14] = {6,  9,  12, 15, 16,  19, 22, 23,  26, 29, 30,  33, 36, 37};
-    int cDim_[14] = {4, 4,  4, 1, 4,  4, 1, 4,  4, 1, 4,  4, 1, 4};
-    int vDim_[14] = {3, 3,  3, 1, 3,  3, 1, 3,  3, 1, 3,  3, 1, 3};
-    int isEE_[14] = {0, 0,  0, 0, 1,  0, 0, 1,  0, 0, 1,  0, 0, 1};
-    int isRightArm_[14] = {0, 0,  1, 1, 1,  0, 0, 0,  0, 0, 0,  0, 0, 0};
+    // // humanoid
+    // int nJoints_ = 14;
+    
+    // int chestIdx_ = 0;
+    // int neckIdx_ = 1;
+    // int rShoulderIdx_ = 2;
+    // int rElbowIdx_ = 3;
+    // int rWristIdx_ = 4;
+    // int lShoulderIdx_ = 5;
+    // int lElbowIdx_ = 6;
+    // int lWristIdx_ = 7;
+    // int rHipIdx_ = 8;
+    // int rKneeIdx_ = 9;
+    // int rAnkleIdx_ = 10;
+    // int lHipIdx_ = 11;
+    // int lKneeIdx_ = 12;
+    // int lAnkleIdx_ = 13;
+
+    // int cStart_[14] = {7, 11,  15, 19, 20,  24, 28, 29,  33, 37, 38,  42, 46, 47};
+    // int vStart_[14] = {6,  9,  12, 15, 16,  19, 22, 23,  26, 29, 30,  33, 36, 37};
+    // int cDim_[14] = {4, 4,  4, 1, 4,  4, 1, 4,  4, 1, 4,  4, 1, 4};
+    // int vDim_[14] = {3, 3,  3, 1, 3,  3, 1, 3,  3, 1, 3,  3, 1, 3};
+    // int isEE_[14] = {0, 0,  0, 0, 1,  0, 0, 1,  0, 0, 1,  0, 0, 1};
+    // int isRightArm_[14] = {0, 0,  1, 1, 1,  0, 0, 0,  0, 0, 0,  0, 0, 0};
+
+    // ybot
+    int nJoints_ = 18;
+
+    int spineIdx_ = 0; // 7
+    int spine1Idx_ = 1; // 11
+    int spine2Idx_ = 2; // 15
+    int neckIdx_ = 3; // 19
+    int rCollarIdx_ = 4; // 23
+    int rShoulderIdx_ = 5; // 27
+    int rElbowIdx_ = 6; // 31
+    int rWristIdx_ = 7; // 32
+    int lCollarIdx_ = 8; // 36
+    int lShoulderIdx_ = 9; // 40
+    int lElbowIdx_ = 10; // 44
+    int lWristIdx_ = 11; // 45
+    int rHipIdx_ = 12; // 49
+    int rKneeIdx_ = 13; // 53
+    int rAnkleIdx_ = 14; // 54
+    int lHipIdx_ = 15; // 58
+    int lKneeIdx_ = 16; // 62
+    int lAnkleIdx_ = 17; // 63
+
+    int cStart_[18] = {7, 11, 15, 19, 23, 27, 31, 32, 36, 40, 44, 45, 49, 53, 54, 58, 62, 63};
+    int cDim_[18] = {4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 1, 4, 4, 1, 4, 4, 1, 4};
+    int vStart_[18] = {6,  9, 12, 15, 18, 21, 24, 25, 28, 31, 34, 35, 38, 41, 42, 45, 48, 49};
+    int vDim_[18] = {3, 3, 3, 3, 3, 3, 1, 3, 3, 3, 1, 3, 3, 1, 3, 3, 1, 3};
+    int isEE_[18] = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1};
+    int isRightArm_[18] = {0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     Vec<3> rHandCenter = {0, -0.08850, 0};
 

@@ -10,9 +10,10 @@ environment:
   max_time: 100.0
 
   character:
-    file name: "humanoid_dribble"
+    file name: "ybot"
 
   motion data:
+    is data: False
     file name: "walk"
     has wrist: False
     fps: 30
