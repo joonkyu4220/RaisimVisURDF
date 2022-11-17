@@ -17,11 +17,9 @@ if __name__ == '__main__':
     control_dt = float(cfg["environment"]["control_dt"])
 
     # create environment from the configuration file
-    env = RaisimVisURDF.RaisimGymEnv(home_path + "/rsc", dump(cfg['environment'], Dumper=RoundTripDumper))
     env = VecEnv(RaisimVisURDF.RaisimGymEnv(home_path + "/rsc", dump(cfg['environment'], Dumper=RoundTripDumper)), cfg['environment'])
     print("env_created")
     env.setTask()
-    env.reset()
     
     max_length = 10000000
     for i in range(max_length):

@@ -61,6 +61,10 @@ class ENVIRONMENT : public RaisimGymEnv {
     
     com_.setZero(comDim_); comRef_.setZero(comDim_);
     ee_.setZero(eeDim_); eeRef_.setZero(eeDim_);
+    
+    for (auto bodyName:simChar_->getBodyNames()){
+      std::cout << bodyName << std::endl;
+    }
   }
 
   void setData(){
